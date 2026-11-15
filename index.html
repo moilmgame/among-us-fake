@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Among Us - Phiên Bản Tiếng Việt</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #090a0f; color: white; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        /* Màn hình chung */
+        .screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%); z-index: 10; }
+        .hidden { display: none !important; }
+
+        /* Menu Chính */
+        h1 { font-size: 4rem; letter-spacing: 5px; text-shadow: 0 0 20px #e74c3c; margin-bottom: 20px; text-transform: uppercase; }
+        .menu-box { background: rgba(255, 255, 255, 0.08); padding: 30px; border-radius: 15px; border: 2px solid #34495e; width: 450px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .setting-group { margin: 15px 0; text-align: left; }
+        .setting-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #bdc3c7; }
+        .color-picker { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+        .color-btn { width: 36px; height: 36px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: 0.2s; }
+        .color-btn.selected { border-color: white; transform: scale(1.2); box-shadow: 0 0 10px white; }
+        
+        select, button.primary-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        select { background: #2c3e50; color: white; }
+        button.primary-btn { background: #27ae60; color: white; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+        button.primary-btn:hover { background: #2ecc71; transform: translateY(-2px); }
+
+        /* Giao diện trong game (HUD) */
+        #game-container { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; background: #000; }
+        
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 20px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: flex-start; }
+        .task-bar-container { width: 320px; background: rgba(0, 0, 0, 0.7); border: 2px solid #7f8c8d; border-radius: 10px; padding: 10px; }
+        .task-progress-bg { width: 100%; height: 20px; background: #2c3e50; border-radius: 5px; overflow: hidden; margin-top: 5px; }
+        #task-progress-fill { height: 100%; width: 0%; background: #2ecc71; transition: width 0.3s; }
+        #role-badge { font-size: 1.3rem; font-weight: bold; padding: 10px 20px; border-radius: 10px; background: rgba(0,0,0,0.7); border: 2px solid white; }
+        
+        .action-buttons { position: absolute; bottom: 30px; right: 30px; display: flex; gap: 15px; pointer-events: auto; }
+        .action-btn { width: 85px; height: 85px; border-radius: 50%; border: 4px solid white; font-weight: bold; font-size: 0.9rem; color: white; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.6); transition: 0.15s; }
+        .action-btn:disabled { opacity: 0.35; cursor: not-allowed; filter: grayscale(100%); }
+        .action-btn:not(:disabled):active { transform: scale(0.92); }
+        #btn-use { background: #2980b9; }
+        #btn-report { background: #e67e22; }
+        #btn-kill { background: #c0392b; }
+        #btn-vent { background: #7f8c8d; }
+        #btn-sabotage { background: #8e44ad; }
+
+        /* Modal Nhiệm Vụ & Họp Khẩn Cấp */
+        .modal { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #2c3e50; border: 4px solid #ecf0f1; border-radius: 15px; padding: 25px; z-index: 20; box-shadow: 0 0 50px rgba(0,0,0,0.9); text-align: center; }
+        
+        /* Mini-games */
+        .wire-container { display: flex; justify-content: space-between; width: 320px; margin: 20px auto; }
+        .wire-col { display: flex; flex-direction: column; gap: 15px; }
+        .wire-node { width: 45px; height: 30px; border-radius: 5px; cursor: pointer; border: 2px solid white; }
+        .wire-node.connected { opacity: 0.4; cursor: default; }
+        .keypad-grid { display: grid; grid-template-columns: repeat(3, 60px); gap: 10px; justify-content: center; margin-top: 15px; }
+        .key-btn { padding: 15px; font-size: 1.2rem; font-weight: bold; background: #34495e; color: white; border: 2px solid #7f8c8d; border-radius: 8px; cursor: pointer; }
+        .key-btn:hover { background: #1abc9c; }
+
+        /* Màn hình Họp & Bỏ Phiếu */
+        #meeting-modal { width: 780px; max-width: 95vw; background: #1e272e; }
+        .meeting-body { display: flex; gap: 20px; margin-top: 15px; text-align: left; }
+        .players-vote-list { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .vote-card { background: #2f3640; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 2px solid transparent; cursor: pointer; }
+        .vote-card:hover:not(.dead) { border-color: #3498db; }
+        .vote-card.dead { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
+        .vote-card.voted { border-color: #2ecc71; background: #218c74; }
+        .chat-box { flex: 1; background: #0f1519; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; height: 300px; }
+        #chat-messages { flex: 1; overflow-y: auto; font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        .chat-msg { background: #2f3640; padding: 6px 10px; border-radius: 6px; }
+        .chat-input-row { display: flex; gap: 5px; }
+        .chat-input-row input { flex: 1; padding: 8px; border-radius: 5px; border: none; background: #353b48; color: white; }
+        .chat-input-row button { padding: 8px 12px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; }
+
+        /* Màn hình Kết thúc / Đẩy ra ngoài không gian */
+        #ejection-screen { background: black; font-size: 2rem; font-weight: bold; letter-spacing: 2px; }
+        #gameover-screen h2 { font-size: 3.5rem; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. MÀN HÌNH MENU CHÍNH -->
+    <div id="menu-screen" class="screen">
+        <h1>AMONG US</h1>
+        <div class="menu-box">
+            <div class="setting-group">
+                <label>Chọn màu phi hành gia:</label>
+                <div class="color-picker" id="color-picker"></div>
+            </div>
+            <div class="setting-group">
+                <label>Vai trò của bạn:</label>
+                <select id="role-select">
+                    <option value="random">Ngẫu nhiên (Random)</option>
+                    <option value="crewmate">Thuyền Viên (Crewmate)</option>
+                    <option value="impostor">Kẻ Giả Mạo (Impostor)</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label>Số lượng người chơi (cùng AI Bot):</label>
+                <select id="count-select">
+                    <option value="6">6 Người (1 Kẻ Giả Mạo)</option>
+                    <option value="8" selected>8 Người (1 Kẻ Giả Mạo)</option>
+                </select>
+            </div>
+            <button class="primary-btn" onclick="startGame()">Bắt Đầu Trò Chơi</button>
+            <p style="margin-top: 12px; font-size: 0.85rem; color: #95a5a6;">Di chuyển: <b>WASD</b> hoặc <b>Phím Mũi Tên</b> | Tương tác: <b>Phím E / Space</b></p>
+        </div>
+    </div>
+
+    <!-- 2. MÀN HÌNH CHƠI GAME -->
+    <div id="game-container" class="hidden">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="hud">
+            <div class="top-bar">
+                <div class="task-bar-container">
+                    <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+                        <span>TIẾN ĐỘ NHIỆM VỤ</span>
+                        <span id="task-percent">0%</span>
+                    </div>
+                    <div class="task-progress-bg">
+                        <div id="task-progress-fill"></div>
+                    </div>
+                    <div id="task-list-text" style="margin-top:8px; font-size: 0.85rem; color: #ecf0f1;"></div>
+                </div>
+
+                <div id="sabotage-alert" class="hidden" style="background:#c0392b; padding:10px 20px; border-radius:8px; font-weight:bold; animation: blink 1s infinite;">
+                    ⚠️ CẢNH BÁO: HỆ THỐNG ĐÈN BỊ PHÁ HOẠI!
+                </div>
+
+                <div id="role-badge">THUYỀN VIÊN</div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="btn-sabotage" class="action-btn hidden" onclick="triggerSabotage()">PHÁ ĐÈN</button>
+                <button id="btn-vent" class="action-btn hidden" onclick="useVent()">CHUI CỐNG</button>
+                <button id="btn-kill" class="action-btn hidden" onclick="tryKill()" disabled>HẠ GỤC</button>
+                <button id="btn-report" class="action-btn" onclick="reportBody()" disabled>BÁO CÁO</button>
+                <button id="btn-use" class="action-btn" onclick="useInteract()" disabled>SỬ DỤNG</button>
+            </div>
+        </div>
+
+        <!-- MODAL MINI-GAME NHIỆM VỤ -->
+        <div id="task-modal" class="modal hidden">
+            <h3 id="task-title">Nhiệm Vụ</h3>
+            <div id="task-content"></div>
+            <button onclick="closeTaskModal()" style="margin-top:15px; padding:8px 20px; background:#e74c3c; color:white; border:none; border-radius:5px; cursor:pointer;">Đóng</button>
+        </div>
+
+        <!-- MODAL HỌP KHẨN CẤP & BỎ PHIẾU -->
+        <div id="meeting-modal" class="modal hidden">
+            <h2 id="meeting-title" style="color: #e74c3c;">HỌP KHẨN CẤP!</h2>
+            <p id="meeting-timer" style="color: #f1c40f; font-weight: bold; margin-top: 5px;">Thời gian bỏ phiếu: 30s</p>
+            <div class="meeting-body">
+                <div class="players-vote-list" id="vote-list"></div>
+                <div class="chat-box">
+                    <div id="chat-messages"></div>
+                    <div class="chat-input-row">
+                        <input type="text" id="chat-input" placeholder="Nhập lời khai của bạn..." onkeypress="if(event.key==='Enter') sendPlayerChat()">
+                        <button onclick="sendPlayerChat()">Gửi</button>
+                    </div>
+                </div>
+            </div>
+            <button id="btn-skip-vote" onclick="castVote('skip')" style="margin-top: 15px; padding: 10px 25px; background: #7f8c8d; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">BỎ QUA PHIẾU (SKIP)</button>
+        </div>
+    </div>
+
+    <!-- 3. MÀN HÌNH ĐẨY RA NGOÀI KHÔNG GIAN -->
+    <div id="ejection-screen" class="screen hidden">
+        <p id="ejection-text"></p>
+    </div>
+
+    <!-- 4. MÀN HÌNH KẾT THÚC -->
+    <div id="gameover-screen" class="screen hidden">
+        <h2 id="gameover-title">CHIẾN THẮNG</h2>
+        <p id="gameover-desc" style="font-size: 1.3rem; margin-bottom: 25px; color: #bdc3c7;"></p>
+        <button class="primary-btn" style="width: 250px;" onclick="location.reload()">Chơi Lại</button>
+    </div>
+
+<script>
+const COLORS = [
+    { name: 'Đỏ', hex: '#e74c3c' },
+    { name: 'Xanh Dương', hex: '#3498db' },
+    { name: 'Xanh Lá', hex: '#2ecc71' },
+    { name: 'Vàng', hex: '#f1c40f' },
+    { name: 'Cam', hex: '#e67e22' },
+    { name: 'Tím', hex: '#9b59b6' },
+    { name: 'Hồng', hex: '#fd79a8' },
+    { name: 'Trắng', hex: '#ecf0f1' }
+];
+
+let selectedColor = COLORS[0];
+const colorPicker = document.getElementById('color-picker');
+COLORS.forEach((c, idx) => {
+    const btn = document.createElement('div');
+    btn.className = 'color-btn' + (idx === 0 ? ' selected' : '');
+    btn.style.backgroundColor = c.hex;
+    btn.onclick = () => {
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedColor = c;
+    };
+    colorPicker.appendChild(btn);
+});
+
+// Dữ liệu bản đồ Tàu Vũ Trụ (Các phòng & Hành lang)
+const ROOMS = [
+    { id: 'cafeteria', name: 'Nhà Ăn', x: 800, y: 200, w: 500, h: 400, color: '#34495e' },
+    { id: 'medbay', name: 'Phòng Y Tế', x: 350, y: 350, w: 300, h: 250, color: '#2c3e50' },
+    { id: 'electrical', name: 'Phòng Điện', x: 350, y: 750, w: 300, h: 300, color: '#2c3e50' },
+    { id: 'engine', name: 'Phòng Động Cơ', x: 850, y: 800, w: 400, h: 300, color: '#2c3e50' },
+    { id: 'nav', name: 'Phòng Điều Khiển', x: 1450, y: 450, w: 350, h: 350, color: '#2c3e50' },
+    // Hành lang kết nối
+    { id: 'hall1', name: 'Hành Lang Tây', x: 650, y: 420, w: 150, h: 100, color: '#1e272e' },
+    { id: 'hall2', name: 'Hành Lang Nam', x: 450, y: 600, w: 100, h: 150, color: '#1e272e' },
+    { id: 'hall3', name: 'Hành Lang Giữa', x: 1000, y: 600, w: 100, h: 200, color: '#1e272e' },
+    { id: 'hall4', name: 'Hành Lang Đông', x: 1300, y: 500, w: 150, h: 100, color: '#1e272e' },
+    { id: 'hall5', name: 'Hành Lang Dưới', x: 650, y: 900, w: 200, h: 100, color: '#1e272e' }
+];
+
+const VENTS = [
+    { id: 0, x: 400, y: 400, room: 'Phòng Y Tế' },
+    { id: 1, x: 400, y: 980, room: 'Phòng Điện' },
+    { id: 2, x: 1720, y: 720, room: 'Phòng Điều Khiển' }
+];
+
+const TASK_LOCATIONS = [
+    { id: 'wires', name: 'Nối dây điện', room: 'Phòng Điện', x: 500, y: 800 },
+    { id: 'keypad', name: 'Nhập mã PIN', room: 'Phòng Điều Khiển', x: 1620, y: 500 },
+    { id: 'lever', name: 'Gạt cần năng lượng', room: 'Phòng Động Cơ', x: 1050, y: 850 },
+    { id: 'scan', name: 'Quét sinh trắc học', room: 'Phòng Y Tế', x: 500, y: 420 }
+];
+
+const EMERGENCY_BUTTON = { x: 1050, y: 400, radius: 35 };
+
+let canvas, ctx;
+let players = [];
+let bodies = [];
+let myPlayer = null;
+let keys = {};
+let gameState = 'MENU'; // MENU, PLAYING, MEETING, ENDED
+let lightsSabotaged = false;
+let sabotageTimer = 0;
+let killCooldown = 0;
+let totalTasksNeeded = 0;
+let completedTasksCount = 0;
+let currentActiveTask = null;
+let meetingInterval = null;
+let myVote = null;
+
+function startGame() {
+    document.getElementById('menu-screen').classList.add('hidden');
+    document.getElementById('game-container').classList.remove('hidden');
+    
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const playerCount = parseInt(document.getElementById('count-select').value);
+    const roleChoice = document.getElementById('role-select').value;
+    
+    let isPlayerImpostor = false;
+    if (roleChoice === 'impostor') isPlayerImpostor = true;
+    else if (roleChoice === 'random') isPlayerImpostor = Math.random() < 0.35;
+
+    // Tạo danh sách người chơi
+    players = [];
+    let availableColors = COLORS.filter(c => c.hex !== selectedColor.hex);
+    availableColors.sort(() => Math.random() - 0.5);
+
+    // Người chơi chính
+    myPlayer = createEntity(0, 'Bạn (' + selectedColor.name + ')', selectedColor.hex, isPlayerImpostor, true);
+    players.push(myPlayer);
+
+    // Chọn 1 bot làm impostor nếu người chơi là crewmate
+    let impostorBotIndex = isPlayerImpostor ? -1 : Math.floor(Math.random() * (playerCount - 1)) + 1;
+
+    for (let i = 1; i < playerCount; i++) {
+        let c = availableColors[i - 1];
+        let isImp = (i === impostorBotIndex);
+        players.push(createEntity(i, c.name, c.hex, isImp, false));
+    }
+
+    // Giao nhiệm vụ cho thuyền viên
+    totalTasksNeeded = 0;
+    players.forEach(p => {
+        if (!p.isImpostor) {
+            p.tasks = [...TASK_LOCATIONS].sort(() => Math.random() - 0.5).slice(0, 3).map(t => ({ ...t, done: false }));
+            totalTasksNeeded += p.tasks.length;
+        }
+    });
+
+    setupHUD();
+    gameState = 'PLAYING';
+    requestAnimationFrame(gameLoop);
+}
+
+function createEntity(id, name, color, isImpostor, isHuman) {
+    const angle = (id / 8) * Math.PI * 2;
+    return {
+        id, name, color, isImpostor, isHuman,
+        x: 1050 + Math.cos(angle) * 110,
+        y: 400 + Math.sin(angle) * 110,
+        radius: 22,
+        speed: 4.2,
+        alive: true,
+        tasks: [],
+        aiTarget: null,
+        aiWait: 0,
+        lastSeenRoom: 'Nhà Ăn'
+    };
+}
+
+function setupHUD() {
+    const badge = document.getElementById('role-badge');
+    if (myPlayer.isImpostor) {
+        badge.innerText = 'KẺ GIẢ MẠO (IMPOSTOR)';
+        badge.style.color = '#e74c3c';
+        badge.style.borderColor = '#e74c3c';
+        document.getElementById('btn-kill').classList.remove('hidden');
+        document.getElementById('btn-vent').classList.remove('hidden');
+        document.getElementById('btn-sabotage').classList.remove('hidden');
+        document.getElementById('task-list-text').innerHTML = '<i>Nhiệm vụ giả: Phá hoại và hạ gục thuyền viên!</i>';
+    } else {
+        badge.innerText = 'THUYỀN VIÊN (CREWMATE)';
+        badge.style.color = '#2ecc71';
+        badge.style.borderColor = '#2ecc71';
+        updateTaskHUD();
+    }
+}
+
+function updateTaskHUD() {
+    const percent = totalTasksNeeded > 0 ? Math.floor((completedTasksCount / totalTasksNeeded) * 100) : 0;
+    document.getElementById('task-progress-fill').style.width = percent + '%';
+    document.getElementById('task-percent').innerText = percent + '%';
+
+    if (!myPlayer.isImpostor) {
+        const listEl = document.getElementById('task-list-text');
+        listEl.innerHTML = myPlayer.tasks.map(t => 
+            `<div style="color:${t.done ? '#2ecc71' : '#ecf0f1'}">${t.done ? '✔' : '•'} ${t.name} (${t.room})</div>`
+        ).join('');
+    }
+    if (percent >= 100) {
+        endGame('THUYỀN VIÊN CHIẾN THẮNG!', 'Tất cả nhiệm vụ trên tàu đã được hoàn thành!');
+    }
+}
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if ((e.key.toLowerCase() === 'e' || e.key === ' ') && gameState === 'PLAYING') {
+        if (!document.getElementById('btn-use').disabled) useInteract();
+    }
+});
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function isWalkable(x, y) {
+    for (let r of ROOMS) {
+        if (x >= r.x + 20 && x <= r.x + r.w - 20 && y >= r.y + 20 && y <= r.y + r.h - 20) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function getRoomName(x, y) {
+    for (let r of ROOMS) {
+        if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return r.name;
+    }
+    return 'Hành Lang';
+}
+
+function update() {
+    if (gameState !== 'PLAYING') return;
+
+    if (killCooldown > 0) killCooldown -= 1 / 60;
+    if (lightsSabotaged) {
+        sabotageTimer -= 1 / 60;
+        if (sabotageTimer <= 0) {
+            lightsSabotaged = false;
+            document.getElementById('sabotage-alert').classList.add('hidden');
+        }
+    }
+
+    // Di chuyển người chơi chính
+    if (myPlayer.alive) {
+        let dx = 0, dy = 0;
+        if (keys['w'] || keys['arrowup']) dy -= 1;
+        if (keys['s'] || keys['arrowdown']) dy += 1;
+        if (keys['a'] || keys['arrowleft']) dx -= 1;
+        if (keys['d'] || keys['arrowright']) dx += 1;
+
+        if (dx !== 0 || dy !== 0) {
+            let len = Math.hypot(dx, dy);
+            dx = (dx / len) * myPlayer.speed;
+            dy = (dy / len) * myPlayer.speed;
+            if (isWalkable(myPlayer.x + dx, myPlayer.y)) myPlayer.x += dx;
+            if (isWalkable(myPlayer.x, myPlayer.y + dy)) myPlayer.y += dy;
+            myPlayer.lastSeenRoom = getRoomName(myPlayer.x, myPlayer.y);
+        }
+    }
+
+    // Cập nhật AI Bots
+    players.forEach(p => {
+        if (p.isHuman || !p.alive) return;
+        p.lastSeenRoom = getRoomName(p.x, p.y);
+
+        if (p.aiWait > 0) {
+            p.aiWait -= 1 / 60;
+            return;
+        }
+
+        if (!p.aiTarget || Math.hypot(p.aiTarget.x - p.x, p.aiTarget.y - p.y) < 30) {
+            if (p.aiTarget && !p.isImpostor && p.aiTarget.isTask) {
+                completedTasksCount++;
+                updateTaskHUD();
+            }
+            const randRoom = ROOMS[Math.floor(Math.random() * 5)];
+            p.aiTarget = {
+                x: randRoom.x + 60 + Math.random() * (randRoom.w - 120),
+                y: randRoom.y + 60 + Math.random() * (randRoom.h - 120),
+                isTask: Math.random() < 0.5
+            };
+            p.aiWait = 1 + Math.random() * 2;
+        } else {
+            let angle = Math.atan2(p.aiTarget.y - p.y, p.aiTarget.x - p.x);
+            let vx = Math.cos(angle) * (p.speed * 0.85);
+            let vy = Math.sin(angle) * (p.speed * 0.85);
+            if (isWalkable(p.x + vx, p.y)) p.x += vx;
+            else p.aiTarget = null;
+            if (isWalkable(p.x, p.y + vy)) p.y += vy;
+            else p.aiTarget = null;
+        }
+
+        // Bot Impostor tự động hạ gục nếu ở một mình với thuyền viên
+        if (p.isImpostor && killCooldown <= 0) {
+            let nearbyAlive = players.filter(other => other.alive && other.id !== p.id && Math.hypot(other.x - p.x, other.y - p.y) < 120);
+            if (nearbyAlive.length === 1 && !nearbyAlive[0].isImpostor) {
+                let victim = nearbyAlive[0];
+                victim.alive = false;
+                bodies.push({ x: victim.x, y: victim.y, color: victim.color, name: victim.name, room: getRoomName(victim.x, victim.y) });
+                killCooldown = 18;
+                checkWinCondition();
+            }
+        }
+
+        // Bot tự động báo cáo thi thể nếu đi ngang qua
+        for (let b of bodies) {
+            if (Math.hypot(b.x - p.x, b.y - p.y) < 80 && Math.random() < 0.03) {
+                startMeeting(`${p.name} đã phát hiện thi thể của ${b.name} tại ${b.room}!`);
+                break;
+            }
+        }
+    });
+
+    updateActionButtons();
+}
+
+function updateActionButtons() {
+    // Nút Báo Cáo
+    let canReport = myPlayer.alive && bodies.some(b => Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y) < 100);
+    document.getElementById('btn-report').disabled = !canReport;
+
+    // Nút Sử Dụng (Nhiệm vụ hoặc Nút họp khẩn cấp)
+    let nearEmergency = myPlayer.alive && Math.hypot(EMERGENCY_BUTTON.x - myPlayer.x, EMERGENCY_BUTTON.y - myPlayer.y) < 80;
+    let nearTask = !myPlayer.isImpostor && myPlayer.alive && myPlayer.tasks.some(t => !t.done && Math.hypot(t.x - myPlayer.x, t.y - myPlayer.y) < 75);
+    document.getElementById('btn-use').disabled = !(nearEmergency || nearTask);
+
+    // Nút dành riêng cho Kẻ Giả Mạo
+    if (myPlayer.isImpostor && myPlayer.alive) {
+        let btnKill = document.getElementById('btn-kill');
+        let target = players.find(p => p.alive && !p.isImpostor && Math.hypot(p.x - myPlayer.x, p.y - myPlayer.y) < 85);
+        btnKill.disabled = !(target && killCooldown <= 0);
+        btnKill.innerText = killCooldown > 0 ? `HỒI (${Math.ceil(killCooldown)}s)` : 'HẠ GỤC';
+
+        let nearVent = VENTS.some(v => Math.hypot(v.x - myPlayer.x, v.y - myPlayer.y) < 65);
+        document.getElementById('btn-vent').disabled = !nearVent;
+    }
+}
+
+function tryKill() {
+    if (!myPlayer.isImpostor || killCooldown > 0) return;
+    let target = players.find(p => p.alive && !p.isImpostor && Math.hypot(p.x - myPlayer.x, p.y - myPlayer.y) < 85);
+    if (target) {
+        target.alive = false;
+        myPlayer.x = target.x;
+        myPlayer.y = target.y;
+        bodies.push({ x: target.x, y: target.y, color: target.color, name: target.name, room: getRoomName(target.x, target.y) });
+        killCooldown = 15;
+        checkWinCondition();
+    }
+}
+
+function useVent() {
+    let idx = VENTS.findIndex(v => Math.hypot(v.x - myPlayer.x, v.y - myPlayer.y) < 65);
+    if (idx !== -1) {
+        let nextVent = VENTS[(idx + 1) % VENTS.length];
+        myPlayer.x = nextVent.x;
+        myPlayer.y = nextVent.y;
+    }
+}
+
+function triggerSabotage() {
+    if (lightsSabotaged) return;
+    lightsSabotaged = true;
+    sabotageTimer = 15;
+    document.getElementById('sabotage-alert').classList.remove('hidden');
+}
+
+function reportBody() {
+    let body = bodies.find(b => Math.hypot(b.x - myPlayer.x, b.y - myPlayer.y) < 100);
+    if (body) {
+        startMeeting(`${myPlayer.name} đã báo cáo thi thể của ${body.name} ở ${body.room}!`);
+    }
+}
+
+function useInteract() {
+    if (Math.hypot(EMERGENCY_BUTTON.x - myPlayer.x, EMERGENCY_BUTTON.y - myPlayer.y) < 80) {
+        startMeeting(`${myPlayer.name} đã bấm nút HỌP KHẨN CẤP tại Nhà Ăn!`);
+        return;
+    }
+    if (!myPlayer.isImpostor) {
+        let task = myPlayer.tasks.find(t => !t.done && Math.hypot(t.x - myPlayer.x, t.y - myPlayer.y) < 75);
+        if (task) openTaskModal(task);
+    }
+}
+
+// HỆ THỐNG MINI-GAME NHIỆM VỤ
+function openTaskModal(task) {
+    currentActiveTask = task;
+    const modal = document.getElementById('task-modal');
+    const content = document.getElementById('task-content');
+    document.getElementById('task-title').innerText = task.name;
+    modal.classList.remove('hidden');
+
+    if (task.id === 'wires') {
+        let colors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71'];
+        let rightColors = [...colors].sort(() => Math.random() - 0.5);
+        let selectedLeft = null;
+        let connected = 0;
+
+        content.innerHTML = `<p>Bấm chọn dây bên trái rồi nối với màu tương ứng bên phải:</p>
+            <div class="wire-container">
+                <div class="wire-col" id="left-wires"></div>
+                <div class="wire-col" id="right-wires"></div>
+            </div>`;
+        
+        colors.forEach(c => {
+            let el = document.createElement('div');
+            el.className = 'wire-node';
+            el.style.background = c;
+            el.onclick = () => { if(!el.classList.contains('connected')) selectedLeft = { color: c, el }; };
+            document.getElementById('left-wires').appendChild(el);
+        });
+        rightColors.forEach(c => {
+            let el = document.createElement('div');
+            el.className = 'wire-node';
+            el.style.background = c;
+            el.onclick = () => {
+                if (selectedLeft && selectedLeft.color === c && !el.classList.contains('connected')) {
+                    selectedLeft.el.classList.add('connected');
+                    el.classList.add('connected');
+                    selectedLeft = null;
+                    connected++;
+                    if (connected === 4) completeCurrentTask();
+                }
+            };
+            document.getElementById('right-wires').appendChild(el);
+        });
+    } else if (task.id === 'keypad') {
+        let code = Math.floor(1000 + Math.random() * 9000).toString();
+        let entered = '';
+        content.innerHTML = `<p>Nhập mã PIN: <b style="color:#2ecc71; font-size:1.3rem;">${code}</b></p>
+            <div id="pin-display" style="background:#111; padding:10px; margin:10px auto; width:180px; font-size:1.4rem; letter-spacing:5px;">----</div>
+            <div class="keypad-grid" id="keypad-grid"></div>`;
+        for (let i = 1; i <= 9; i++) {
+            let btn = document.createElement('button');
+            btn.className = 'key-btn';
+            btn.innerText = i;
+            btn.onclick = () => {
+                entered += i;
+                document.getElementById('pin-display').innerText = entered.padEnd(4, '-');
+                if (entered === code) completeCurrentTask();
+                else if (entered.length >= 4) { entered = ''; document.getElementById('pin-display').innerText = 'SAI!'; }
+            };
+            document.getElementById('keypad-grid').appendChild(btn);
+        }
+    } else {
+        content.innerHTML = `<p>Nhấn giữ nút bên dưới để hoàn tất quá trình ${task.name}:</p>
+            <button class="primary-btn" style="width:200px; margin-top:20px;" onclick="completeCurrentTask()">KÍCH HOẠT NGAY</button>`;
+    }
+}
+
+function completeCurrentTask() {
+    if (currentActiveTask && !currentActiveTask.done) {
+        currentActiveTask.done = true;
+        completedTasksCount++;
+        updateTaskHUD();
+    }
+    closeTaskModal();
+}
+
+function closeTaskModal() {
+    document.getElementById('task-modal').classList.add('hidden');
+    currentActiveTask = null;
+}
+
+// HỆ THỐNG HỌP KHẨN CẤP & BỎ PHIẾU AI
+function startMeeting(reason) {
+    gameState = 'MEETING';
+    closeTaskModal();
+    bodies = []; // Dọn dẹp thi thể sau khi họp
+    myVote = null;
+
+    document.getElementById('meeting-title').innerText = reason;
+    document.getElementById('meeting-modal').classList.remove('hidden');
+    const chatBox = document.getElementById('chat-messages');
+    chatBox.innerHTML = `<div class="chat-msg" style="color:#f1c40f;"><b>Hệ thống:</b> Thảo luận và tìm ra Kẻ Giả Mạo!</div>`;
+
+    const voteList = document.getElementById('vote-list');
+    voteList.innerHTML = '';
+    players.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'vote-card' + (p.alive ? '' : ' dead');
+        card.id = 'vote-card-' + p.id;
+        card.innerHTML = `<div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:20px; height:20px; border-radius:50%; background:${p.color}; display:inline-block;"></span>
+            <b>${p.name}</b>
+        </div>
+        <span id="vote-count-${p.id}" style="color:#2ecc71; font-weight:bold;"></span>`;
+        if (p.alive && myPlayer.alive) {
+            card.onclick = () => castVote(p.id);
+        }
+        voteList.appendChild(card);
+    });
+
+    // AI Bot tự chat lời khai dựa trên vị trí thực tế
+    let aliveBots = players.filter(p => !p.isHuman && p.alive);
+    aliveBots.forEach((bot, idx) => {
+        setTimeout(() => {
+            if (gameState !== 'MEETING') return;
+            let lines = [
+                `Tôi đang làm nhiệm vụ ở ${bot.lastSeenRoom}, không làm gì cả!`,
+                `Ai vừa ở gần ${bot.lastSeenRoom} vậy? Hơi đáng nghi nhé.`,
+                `Tôi thấy mọi người di chuyển khá bình thường.`,
+                `Bỏ phiếu cẩn thận kẻo loại nhầm thuyền viên!`
+            ];
+            addChatMessage(bot.name, bot.color, lines[Math.floor(Math.random() * lines.length)]);
+        }, (idx + 1) * 1800);
+    });
+
+    let timeLeft = 25;
+    document.getElementById('meeting-timer').innerText = `Thời gian bỏ phiếu: ${timeLeft}s`;
+    meetingInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('meeting-timer').innerText = `Thời gian bỏ phiếu: ${timeLeft}s`;
+        if (timeLeft <= 0) {
+            clearInterval(meetingInterval);
+            tallyVotes();
+        }
+    }, 1000);
+}
+
+function addChatMessage(sender, color, text) {
+    const chatBox = document.getElementById('chat-messages');
+    const msg = document.createElement('div');
+    msg.className = 'chat-msg';
+    msg.innerHTML = `<b style="color:${color}">${sender}:</b> ${text}`;
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendPlayerChat() {
+    const input = document.getElementById('chat-input');
+    if (input.value.trim() && myPlayer.alive) {
+        addChatMessage(myPlayer.name, myPlayer.color, input.value.trim());
+        input.value = '';
+    }
+}
+
+function castVote(targetId) {
+    if (myVote !== null || !myPlayer.alive) return;
+    myVote = targetId;
+    document.querySelectorAll('.vote-card').forEach(c => c.classList.remove('voted'));
+    if (targetId !== 'skip') {
+        document.getElementById('vote-card-' + targetId).classList.add('voted');
+    }
+    clearInterval(meetingInterval);
+    setTimeout(tallyVotes, 1000);
+}
+
+function tallyVotes() {
+    let votes = {};
+    let skipVotes = 0;
+
+    if (myVote !== null) {
+        if (myVote === 'skip') skipVotes++;
+        else votes[myVote] = (votes[myVote] || 0) + 1;
+    }
+
+    // Bot bỏ phiếu
+    let alivePlayers = players.filter(p => p.alive);
+    alivePlayers.forEach(p => {
+        if (p.isHuman) return;
+        if (Math.random() < 0.45) {
+            skipVotes++;
+        } else {
+            let candidates = alivePlayers.filter(c => c.id !== p.id);
+            let pick = candidates[Math.floor(Math.random() * candidates.length)];
+            votes[pick.id] = (votes[pick.id] || 0) + 1;
+        }
+    });
+
+    let maxVotes = skipVotes;
+    let ejectedPlayer = null;
+    let tie = false;
+
+    for (let id in votes) {
+        if (votes[id] > maxVotes) {
+            maxVotes = votes[id];
+            ejectedPlayer = players.find(p => p.id == id);
+            tie = false;
+        } else if (votes[id] === maxVotes) {
+            tie = true;
+        }
+    }
+
+    document.getElementById('meeting-modal').classList.add('hidden');
+    showEjectionScreen(tie ? null : ejectedPlayer);
+}
+
+function showEjectionScreen(ejected) {
+    const screen = document.getElementById('ejection-screen');
+    const textEl = document.getElementById('ejection-text');
+    screen.classList.remove('hidden');
+
+    if (!ejected) {
+        textEl.innerText = 'Không ai bị đẩy ra ngoài không gian (Hòa phiếu / Bỏ qua).';
+    } else {
+        ejected.alive = false;
+        textEl.innerText = `${ejected.name} đã bị đẩy ra ngoài không gian. ${ejected.isImpostor ? 'Hắn chính là Kẻ Giả Mạo!' : 'Người này không phải Kẻ Giả Mạo.'}`;
+    }
+
+    setTimeout(() => {
+        screen.classList.add('hidden');
+        if (!checkWinCondition()) {
+            // Đưa tất cả về Nhà Ăn
+            players.forEach((p, idx) => {
+                if (p.alive) {
+                    const angle = (idx / 8) * Math.PI * 2;
+                    p.x = 1050 + Math.cos(angle) * 110;
+                    p.y = 400 + Math.sin(angle) * 110;
+                }
+            });
+            killCooldown = 12;
+            gameState = 'PLAYING';
+        }
+    }, 3200);
+}
+
+function checkWinCondition() {
+    let aliveImpostors = players.filter(p => p.alive && p.isImpostor).length;
+    let aliveCrewmates = players.filter(p => p.alive && !p.isImpostor).length;
+
+    if (aliveImpostors === 0) {
+        endGame('THUYỀN VIÊN CHIẾN THẮNG!', 'Tất cả Kẻ Giả Mạo đã bị loại bỏ khỏi tàu!');
+        return true;
+    }
+    if (aliveImpostors >= aliveCrewmates) {
+        endGame('KẺ GIẢ MẠO CHIẾN THẮNG!', 'Số lượng Kẻ Giả Mạo đã áp đảo Thuyền Viên!');
+        return true;
+    }
+    return false;
+}
+
+function endGame(title, desc) {
+    gameState = 'ENDED';
+    document.getElementById('gameover-title').innerText = title;
+    document.getElementById('gameover-title').style.color = title.includes('THUYỀN VIÊN') ? '#2ecc71' : '#e74c3c';
+    document.getElementById('gameover-desc').innerText = desc;
+    document.getElementById('gameover-screen').classList.remove('hidden');
+}
+
+// VẼ ĐỒ HỌA 2D & FOG OF WAR
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    // Camera theo dõi người chơi
+    const camX = canvas.width / 2 - myPlayer.x;
+    const camY = canvas.height / 2 - myPlayer.y;
+    ctx.translate(camX, camY);
+
+    // 1. Vẽ sàn các phòng & hành lang
+    ROOMS.forEach(r => {
+        ctx.fillStyle = r.color;
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.strokeStyle = '#7f8c8d';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.font = 'bold 24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(r.name, r.x + r.w / 2, r.y + r.h / 2);
+    });
+
+    // 2. Vẽ Nút Họp Khẩn Cấp ở Nhà Ăn
+    ctx.fillStyle = '#7f8c8d';
+    ctx.beginPath(); ctx.arc(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 45, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath(); ctx.arc(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 25, 0, Math.PI * 2); ctx.fill();
+
+    // 3. Vẽ Cống thông gió (Vents)
+    VENTS.forEach(v => {
+        ctx.fillStyle = '#1e272e';
+        ctx.fillRect(v.x - 22, v.y - 16, 44, 32);
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(v.x - 22, v.y - 16, 44, 32);
+    });
+
+    // 4. Vẽ điểm nhiệm vụ của người chơi
+    if (!myPlayer.isImpostor) {
+        myPlayer.tasks.forEach(t => {
+            if (!t.done) {
+                ctx.fillStyle = '#f1c40f';
+                ctx.beginPath(); ctx.arc(t.x, t.y, 16, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText('!', t.x, t.y + 6);
+            }
+        });
+    }
+
+    // 5. Vẽ Thi thể
+    bodies.forEach(b => {
+        ctx.fillStyle = b.color;
+        ctx.beginPath(); ctx.arc(b.x, b.y + 8, 18, 0, Math.PI); ctx.fill();
+        ctx.fillStyle = '#ecf0f1';
+        ctx.fillRect(b.x - 4, b.y - 6, 8, 14);
+    });
+
+    // 6. Vẽ Nhân vật Phi Hành Gia
+    players.forEach(p => {
+        if (!p.alive && !p.isHuman) return; // Chỉ hồn ma của chính mình mới thấy mình
+        ctx.save();
+        if (!p.alive) ctx.globalAlpha = 0.45;
+
+        // Balo
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - 24, p.y - 12, 10, 24);
+        // Thân
+        ctx.beginPath();
+        ctx.roundRect(p.x - 16, p.y - 22, 32, 42, 14);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        // Kính mũ
+        ctx.fillStyle = '#81ecec';
+        ctx.beginPath();
+        ctx.roundRect(p.x - 2, p.y - 14, 20, 13, 6);
+        ctx.fill();
+
+        // Tên nhân vật
+        ctx.fillStyle = (p.isImpostor && myPlayer.isImpostor) ? '#ff7675' : 'white';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, p.x, p.y - 30);
+        ctx.restore();
+    });
+
+    ctx.restore();
+
+    // 7. Hiệu ứng Sương mù giới hạn tầm nhìn (Fog of War)
+    if (myPlayer.alive) {
+        let visionRadius = myPlayer.isImpostor ? 450 : (lightsSabotaged ? 140 : 320);
+        let grad = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, visionRadius * 0.65, canvas.width / 2, canvas.height / 2, visionRadius);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.96)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 8. Bản đồ thu nhỏ (Minimap) góc dưới bên trái
+    drawMinimap();
+}
+
+function drawMinimap() {
+    const scale = 0.11;
+    const offsetX = 25;
+    const offsetY = canvas.height - 150;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillRect(offsetX - 10, offsetY - 10, 220, 140);
+    ctx.strokeStyle = '#7f8c8d';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(offsetX - 10, offsetY - 10, 220, 140);
+
+    ROOMS.forEach(r => {
+        ctx.fillStyle = '#34495e';
+        ctx.fillRect(offsetX + r.x * scale, offsetY + r.y * scale, r.w * scale, r.h * scale);
+    });
+
+    // Vị trí nhiệm vụ trên minimap
+    if (!myPlayer.isImpostor) {
+        myPlayer.tasks.forEach(t => {
+            if (!t.done) {
+                ctx.fillStyle = '#f1c40f';
+                ctx.beginPath(); ctx.arc(offsetX + t.x * scale, offsetY + t.y * scale, 4, 0, Math.PI * 2); ctx.fill();
+            }
+        });
+    }
+
+    // Vị trí của bạn
+    ctx.fillStyle = myPlayer.color;
+    ctx.beginPath();
+    ctx.arc(offsetX + myPlayer.x * scale, offsetY + myPlayer.y * scale, 5, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function gameLoop() {
+    update();
+    draw();
+    if (gameState !== 'ENDED') requestAnimationFrame(gameLoop);
+}
+</script>
+</body>
+</html>
